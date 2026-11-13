@@ -1,0 +1,643 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tirupati Kirana Billing</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f6fb;color:#172334;font-family:Arial,sans-serif}
+header{background:#0756a5;color:white;padding:15px}
+header h2{margin:0;font-size:21px}
+header p{margin:5px 0 0;font-size:13px}
+.container{max-width:1100px;margin:15px auto;padding:0 12px}
+.card{background:white;padding:15px;border-radius:12px;border:1px solid #dce3ec;margin-bottom:15px}
+h3{margin:0 0 12px;color:#0756a5}
+input,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:7px;margin:5px 0;font-size:14px}
+button{background:#0756a5;color:white;border:0;padding:10px 13px;border-radius:7px;margin:3px;font-weight:bold;cursor:pointer}
+.green{background:#16834a}.orange{background:#f58220;color:#111}.gray{background:#64748b}.red{background:#b42318}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.row{display:flex;gap:8px;align-items:center}
+.row input{flex:1}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 6px;border-bottom:1px solid #e1e6ed;text-align:left}
+th{background:#f0f5fb}
+.total{font-size:23px;color:#0756a5;font-weight:bold}
+.muted{font-size:13px;color:#64748b}
+#login{max-width:420px;margin:40px auto}
+#app{display:none}
+#paymentQR{width:190px;min-height:190px;border:1px solid #ddd;padding:8px;display:flex;align-items:center;justify-content:center;background:white}
+#paymentQR img{max-width:100%}
+@media(max-width:600px){.grid{grid-template-columns:1fr}table{font-size:12px}th,td{padding:6px 3px}}
+</style>
+</head>
+<body>
+
+<header>
+<h2>तिरुपती किराणा आणि जनरल स्टोअर</h2>
+<p>Tirupati Kirana & General Store | Manwath | 9960662895</p>
+</header>
+
+<div id="login" class="card">
+<h3>Owner / Staff Login</h3>
+<input id="email" type="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<p id="loginMsg" class="muted"></p>
+</div>
+
+<main id="app" class="container">
+
+<section class="card">
+<h3>Product Management</h3>
+<div class="grid">
+<input id="pName" placeholder="Product Name">
+<div class="row">
+  <div class="row">
+  <input id="pBarcode" placeholder="Barcode">
+</div>
+  <button type="button" onclick="startBarcodeScan('product')">SCAN</button>
+</div>
+<input id="pPurchase" type="number" min="0" step=".01" placeholder="Purchase Price">
+<input id="pSelling" type="number" min="0" step=".01" placeholder="Selling Price">
+<input id="pStock" type="number" min="0" placeholder="Stock">
+<input id="pExpiry" type="date">
+</div>
+<button id="saveProductBtn" onclick="saveProduct()">Add Product</button>
+<button class="gray" onclick="clearProduct()">Clear</button>
+</section>
+
+<section class="card">
+<h3>Billing</h3>
+<div class="row">
+  <input id="searchProduct" placeholder="Scan barcode or search product">
+  <button onclick="addProductToCart()">ADD</button>
+  <button class="green" onclick="startBarcodeScan('billing')">
+    SCAN
+  </button>
+</div>
+<div id="barcodeScannerBox" style="display:none;margin:12px 0">
+  <div id="barcodeReader" style="width:100%;max-width:400px"></div>
+  <button class="red" onclick="stopBarcodeScan()">STOP SCANNER</button>
+  <p id="scannerMsg" class="muted"></p>
+</div>
+<div style="overflow-x:auto">
+<table>
+<thead><tr><th>Product</th><th>Rate</th><th>Qty</th><th>Amount</th><th></th></tr></thead>
+<tbody id="cartBody"></tbody>
+</table>
+</div>
+<div class="grid">
+<div><label>Customer Name</label><input id="customer" placeholder="Customer name"></div>
+<div><label>Payment Method</label>
+<select id="paymentMethod"><option>Cash</option><option>UPI</option><option>Card</option><option>Other</option></select></div>
+<div><label>Discount (₹)</label><input id="discount" type="number" min="0" value="0" oninput="renderCart()"></div>
+<div><label>Grand Total</label><div class="total" id="grandTotal">₹0.00</div></div>
+</div>
+<button class="green" onclick="saveBill()">SAVE BILL & PRINT</button>
+<button class="orange" onclick="clearCart()">CLEAR BILL</button>
+<button class="gray" onclick="logout()">LOGOUT</button>
+<p id="billMsg" class="muted"></p>
+</section>
+
+<section class="card">
+<h3>UPI Payment QR</h3>
+<div class="row" style="flex-wrap:wrap">
+<div id="paymentQR">Add items to generate QR</div>
+<div style="flex:1;min-width:190px">
+<p><b>UPI ID:</b> 9960662895@okbizaxis</p>
+<p><b>Payable Amount:</b> <span id="qrAmount" class="total">₹0.00</span></p>
+<p class="muted">Scan this QR using any UPI payment app.</p>
+<button class="gray" onclick="refreshQR()">Refresh QR</button>
+</div>
+</div>
+</section>
+
+<section class="card">
+<h3>Product List</h3>
+<input id="filterProduct" placeholder="Search products" oninput="renderProducts()">
+<div style="overflow-x:auto">
+<table>
+<thead><tr><th>Barcode</th><th>Name</th><th>Stock</th><th>Purchase</th><th>Selling</th><th>Action</th></tr></thead>
+<tbody id="productsBody"></tbody>
+</table>
+</div>
+</section>
+
+<section class="card">
+<h3>Bill History</h3>
+<div style="overflow-x:auto">
+<table>
+<thead><tr><th>Bill No</th><th>Date</th><th>Customer</th><th>Total</th><th>Action</th></tr></thead>
+<tbody id="billsBody"></tbody>
+</table>
+</div>
+</section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {getFirestore,collection,addDoc,getDocs,doc,updateDoc,deleteDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+ apiKey:"AIzaSyC6Uqx2uQNtv0bkMmdlkHKRdbX6Fu7ox5c",
+ authDomain:"tirupati-kirana-billing.firebaseapp.com",
+ projectId:"tirupati-kirana-billing",
+ storageBucket:"tirupati-kirana-billing.firebasestorage.app",
+ messagingSenderId:"582426547150",
+ appId:"1:582426547150:web:d6c62611ea62da52ae119f",
+ measurementId:"G-Z9YD2LTC56"
+};
+
+const UPI_ID="9960662895@okbizaxis";
+const STORE="TIRUPATI KIRANA & GENERAL STORE";
+const ADDRESS="MANWATH";
+const PHONE="9960662895";
+
+const fb=initializeApp(firebaseConfig);
+const auth=getAuth(fb);
+const db=getFirestore(fb);
+
+let products=[],bills=[],cart=[];
+let editingProductId=null,editingBillId=null;
+
+const $=id=>document.getElementById(id);
+const money=n=>"₹"+Number(n||0).toFixed(2);
+const safe=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+window.login=async()=>{
+ try{
+  await signInWithEmailAndPassword(auth,$("email").value.trim(),$("password").value);
+ }catch(e){$("loginMsg").textContent=e.message;}
+};
+window.logout=()=>signOut(auth);
+
+onAuthStateChanged(auth,async user=>{
+ $("login").style.display=user?"none":"block";
+ $("app").style.display=user?"block":"none";
+ if(user)await loadAll();
+});
+
+async function loadAll(){
+ try{
+  const [p,b]=await Promise.all([
+   getDocs(collection(db,"products")),
+   getDocs(collection(db,"bills"))
+  ]);
+  products=p.docs.map(d=>({id:d.id,...d.data()}));
+  bills=b.docs.map(d=>({id:d.id,...d.data()}));
+  bills.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  renderProducts();
+  renderBills();
+ }catch(e){alert("Firebase Error: "+e.message);}
+}
+
+/* PRODUCT MANAGEMENT */
+window.clearProduct=()=>{
+ editingProductId=null;
+ ["pName","pBarcode","pPurchase","pSelling","pStock","pExpiry"].forEach(id=>$(id).value="");
+ $("saveProductBtn").textContent="Add Product";
+};
+
+window.saveProduct=async()=>{
+ const name=$("pName").value.trim();
+ if(!name)return alert("Enter product name");
+ const data={
+  name,barcode:$("pBarcode").value.trim(),
+  purchase:Number($("pPurchase").value||0),
+  selling:Number($("pSelling").value||0),
+  stock:Number($("pStock").value||0),
+  expiry:$("pExpiry").value,updatedAt:serverTimestamp()
+ };
+ try{
+  if(editingProductId)await updateDoc(doc(db,"products",editingProductId),data);
+  else await addDoc(collection(db,"products"),{...data,createdAt:serverTimestamp()});
+  clearProduct();
+  await loadAll();
+ }catch(e){alert(e.message);}
+};
+
+window.renderProducts=()=>{
+ const q=($("filterProduct").value||"").toLowerCase();
+ $("productsBody").innerHTML=products.filter(p=>
+  (p.name||"").toLowerCase().includes(q)||(p.barcode||"").includes(q)
+ ).map(p=>`<tr>
+ <td>${safe(p.barcode)}</td><td>${safe(p.name)}</td><td>${Number(p.stock||0)}</td>
+ <td>${money(p.purchase)}</td><td>${money(p.selling)}</td>
+ <td><button class="gray" onclick="editProduct('${p.id}')">Edit</button>
+ <button class="red" onclick="deleteProduct('${p.id}')">Delete</button></td>
+ </tr>`).join("")||'<tr><td colspan="6">No products</td></tr>';
+};
+
+window.editProduct=id=>{
+ const p=products.find(x=>x.id===id);if(!p)return;
+ editingProductId=id;
+ $("pName").value=p.name||"";
+ $("pBarcode").value=p.barcode||"";
+ $("pPurchase").value=p.purchase||0;
+ $("pSelling").value=p.selling||0;
+ $("pStock").value=p.stock||0;
+ $("pExpiry").value=p.expiry||"";
+ $("saveProductBtn").textContent="Update Product";
+ window.scrollTo(0,0);
+};
+
+window.deleteProduct=async id=>{
+ if(!confirm("Delete product?"))return;
+ try{await deleteDoc(doc(db,"products",id));await loadAll();}
+ catch(e){alert(e.message);}
+};
+
+/* CART AND BILLING */
+window.addProductToCart=()=>{
+ const q=$("searchProduct").value.trim().toLowerCase();
+ if(!q)return;
+ const p=products.find(x=>
+  String(x.barcode||"").toLowerCase()===q||
+  String(x.name||"").toLowerCase()===q
+ );
+ if(!p)return alert("Product not found");
+ const old=cart.find(x=>x.productId===p.id);
+ if(old)old.qty++;
+ else cart.push({
+  productId:p.id,name:p.name,barcode:p.barcode||"",
+  rate:Number(p.selling??p.price??0),qty:1
+ });
+ $("searchProduct").value="";
+ renderCart();
+};
+
+$("searchProduct").addEventListener("keydown",e=>{
+ if(e.key==="Enter"){e.preventDefault();addProductToCart();}
+});
+
+function subtotal(){return cart.reduce((s,x)=>s+x.rate*x.qty,0);}
+function grandTotal(){return Math.max(0,subtotal()-Number($("discount").value||0));}
+
+window.renderCart=()=>{
+ $("cartBody").innerHTML=cart.map((x,i)=>`<tr>
+ <td>${safe(x.name)}</td><td>${money(x.rate)}</td>
+ <td><input style="width:65px" type="number" min="1" value="${x.qty}" onchange="setQty(${i},this.value)"></td>
+ <td>${money(x.rate*x.qty)}</td>
+ <td><button class="red" onclick="removeItem(${i})">X</button></td>
+ </tr>`).join("")||'<tr><td colspan="5">No items added</td></tr>';
+ $("grandTotal").textContent=money(grandTotal());
+ refreshQR();
+};
+
+window.setQty=(i,v)=>{cart[i].qty=Math.max(1,Number(v)||1);renderCart();};
+window.removeItem=i=>{cart.splice(i,1);renderCart();};
+window.clearCart=()=>{
+ cart=[];editingBillId=null;
+ $("customer").value="";$("discount").value="0";
+ renderCart();
+};
+
+/* DYNAMIC UPI QR */
+function upiLink(amount){
+ return "upi://pay?pa="+encodeURIComponent(UPI_ID)+
+ "&pn="+encodeURIComponent("Tirupati Kirana")+
+ "&am="+Number(amount).toFixed(2)+
+ "&cu=INR&tn="+encodeURIComponent("Kirana Bill Payment");
+}
+
+window.refreshQR=()=>{
+ const amount=grandTotal();
+ $("qrAmount").textContent=money(amount);
+ $("paymentQR").innerHTML="";
+ if(amount<=0){$("paymentQR").textContent="Add items to generate QR";return;}
+ if(typeof QRCode==="undefined"){$("paymentQR").textContent="QR loading";return;}
+ new QRCode($("paymentQR"),{
+  text:upiLink(amount),width:170,height:170,
+  correctLevel:QRCode.CorrectLevel.M
+ });
+};
+
+/* SAVE BILL */
+window.saveBill=async()=>{
+ if(!cart.length)return alert("Add products first");
+ const sub=subtotal(),discount=Number($("discount").value||0),total=grandTotal();
+ if(discount<0||discount>sub)return alert("Invalid discount");
+
+ const old=editingBillId?bills.find(x=>x.id===editingBillId):null;
+ const billNo=old?.billNo||("TK-"+Date.now());
+ const now=new Date();
+ const data={
+  billNo,customer:$("customer").value.trim(),
+  paymentMethod:$("paymentMethod").value,
+  items:cart.map(x=>({...x})),
+  subtotal:sub,discount,total,upiId:UPI_ID,
+  date:now.toLocaleString("en-IN"),
+  updatedAt:serverTimestamp()
+ };
+ try{
+  let id=editingBillId;
+  if(id)await updateDoc(doc(db,"bills",id),data);
+  else{
+   const ref=await addDoc(collection(db,"bills"),{
+    ...data,createdAt:serverTimestamp()
+   });
+   id=ref.id;
+  }
+  const receipt={id,...data};
+  editingBillId=null;
+  await loadAll();
+  $("billMsg").textContent="Bill saved: "+billNo;
+  printRawBT(receipt);
+  cart=[];$("customer").value="";$("discount").value="0";
+  renderCart();
+ }catch(e){alert("Bill Save Error: "+e.message);}
+};
+
+/* BILL HISTORY */
+function renderBills(){
+ $("billsBody").innerHTML=bills.map(b=>`<tr>
+ <td>${safe(b.billNo||b.id)}</td>
+ <td>${safe(b.date||"")}</td>
+ <td>${safe(b.customer||"-")}</td>
+ <td>${money(b.total)}</td>
+ <td><button onclick="printSavedBill('${b.id}')">Print</button>
+ <button class="gray" onclick="editBill('${b.id}')">Edit</button>
+ <button class="red" onclick="deleteBill('${b.id}')">Delete</button></td>
+ </tr>`).join("")||'<tr><td colspan="5">No bills</td></tr>';
+}
+
+window.printSavedBill=id=>{
+ const b=bills.find(x=>x.id===id);if(b)printRawBT(b);
+};
+
+window.editBill=id=>{
+ const b=bills.find(x=>x.id===id);if(!b)return;
+ editingBillId=id;
+ cart=(b.items||[]).map(x=>({...x}));
+ $("customer").value=b.customer||"";
+ $("paymentMethod").value=b.paymentMethod||"Cash";
+ $("discount").value=b.discount||0;
+ renderCart();
+ window.scrollTo(0,0);
+};
+
+window.deleteBill=async id=>{
+ if(!confirm("Delete this bill?"))return;
+ try{await deleteDoc(doc(db,"bills",id));await loadAll();}
+ catch(e){alert(e.message);}
+};
+
+/* ESC/POS QR CODE */
+function escposQR(text){
+ const bytes=new TextEncoder().encode(text);
+ const out=[];
+ const add=(...v)=>out.push(...v);
+ const length=bytes.length+3;
+ add(0x1d,0x28,0x6b,4,0,49,65,50,0);
+ add(0x1d,0x28,0x6b,3,0,49,67,7);
+ add(0x1d,0x28,0x6b,3,0,49,69,48);
+ add(0x1d,0x28,0x6b,length&255,(length>>8)&255,49,80,48,...bytes);
+ add(0x1d,0x28,0x6b,3,0,49,81,48);
+ return out;
+}
+
+/* 58MM DETAILED RECEIPT */
+function buildReceipt(b) {
+  const W = 32;
+  const line = "-".repeat(W);
+
+  const center = (s) => {
+    s = String(s);
+    return s.length >= W ? s.slice(0, W) :
+      " ".repeat(Math.floor((W - s.length) / 2)) + s;
+  };
+
+  const money = (n) => Number(n || 0).toFixed(2);
+
+  let out = "";
+
+  // Small shop name
+  out += center("TIRUPATI KIRANA & GENERAL STORE") + "\n";
+  out += center("MANWATH") + "\n";
+  out += center("Mob: 9960662895") + "\n";
+  out += line + "\n";
+
+  out += `Bill: ${b.billNo || ""}\n`;
+  out += `Date: ${b.date || ""}\n`;
+  out += `Customer: ${(b.customer || "Walk-in").slice(0, 20)}\n`;
+  out += line + "\n";
+
+  // Fixed-width columns: Qty, Rate and Amount on ONE row
+  out +=
+  "ITEM".padEnd(13) +
+  "QTY".padStart(4) +
+  "RATE".padStart(7) +
+  "AMOUNT".padStart(8) + "\n";
+
+out += "-".repeat(32) + "\n";
+
+(b.items || []).forEach(item => {
+  const name = String(item.name || "Item");
+  const qty = Number(item.qty || 0);
+  const rate = Number(item.rate ?? item.selling ?? item.price ?? 0);
+  const amount = qty * rate;
+
+  const itemName = name.length > 12
+    ? name.substring(0, 12)
+    : name;
+
+  out +=
+    itemName.padEnd(13) +
+    String(qty).padStart(4) +
+    rate.toFixed(2).padStart(7) +
+    amount.toFixed(2).padStart(8) + "\n";
+});
+
+out += "-".repeat(32) + "\n";
+
+  out += line + "\n";
+  out += `Subtotal: Rs. ${money(b.subtotal)}\n`;
+  out += `Discount: Rs. ${money(b.discount)}\n`;
+  out += `GRAND TOTAL: Rs. ${money(b.total)}\n`;
+  out += line + "\n";
+  out += center("THANK YOU! VISIT AGAIN") + "\n";
+
+  return out;
+}
+function printRawBT(b) {
+  try {
+    const amount = Number(b.total || 0).toFixed(2);
+    const qrData = generateUPIQR(amount);
+
+    // ESC/POS QR code commands
+    const qrBytes = [];
+    const push = (...values) => qrBytes.push(...values);
+
+    // Center alignment
+    push(0x1B, 0x61, 0x01);
+
+    // QR model 2
+    push(0x1D, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00);
+
+    // QR size
+    push(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, 0x06);
+
+    // Error correction
+    push(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31);
+
+    // Store QR data
+    const data = new TextEncoder().encode(qrData);
+    const length = data.length + 3;
+
+    push(
+      0x1D, 0x28, 0x6B,
+      length & 0xFF,
+      (length >> 8) & 0xFF,
+      0x31, 0x50, 0x30
+    );
+
+    push(...data);
+
+    // Print QR
+    push(0x1D, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30);
+
+    // Receipt text
+    const receiptText =
+      buildReceipt(b) +
+      "\n\nSCAN TO PAY\n" +
+      "UPI: 9960662895@okbizaxis\n" +
+      "Amount: Rs. " + amount + "\n\n\n";
+
+    const textBytes = new TextEncoder().encode(receiptText);
+
+    // Printer initialization + text + QR
+    const init = new Uint8Array([0x1B, 0x40]);
+    const allBytes = new Uint8Array(
+      init.length + textBytes.length + qrBytes.length
+    );
+
+    allBytes.set(init, 0);
+    allBytes.set(textBytes, init.length);
+    allBytes.set(qrBytes, init.length + textBytes.length);
+
+    // Base64
+    let binary = "";
+    for (let i = 0; i < allBytes.length; i++) {
+      binary += String.fromCharCode(allBytes[i]);
+    }
+
+    window.location.href = "rawbt:base64," + btoa(binary);
+
+    $("billMsg").textContent =
+      "Sending bill and UPI QR to SC588 through RawBT.";
+
+  } catch (e) {
+    alert("RawBT Printing Error: " + e.message);
+  }
+}
+function generateUPIQR(amount) {
+  const upiId = "9960662895@okbizaxis";
+
+  return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent("Tirupati Kirana")}&am=${Number(amount).toFixed(2)}&cu=INR`;
+}
+
+/* BARCODE CAMERA SCANNER */
+
+let barcodeScanner = null;
+let scanTarget = "billing";
+let lastScannedCode = "";
+let lastScanTime = 0;
+
+window.startBarcodeScan = async function(target) {
+  scanTarget = target;
+
+  if (!window.isSecureContext) {
+    alert("Camera requires HTTPS connection.");
+    return;
+  }
+
+  if (typeof Html5Qrcode === "undefined") {
+    alert("Barcode scanner library not loaded.");
+    return;
+  }
+
+  try {
+    if (barcodeScanner) {
+      await stopBarcodeScan();
+    }
+
+    $("barcodeScannerBox").style.display = "block";
+    $("scannerMsg").textContent = "Starting camera...";
+
+    barcodeScanner = new Html5Qrcode("barcodeReader");
+
+    await barcodeScanner.start(
+      { facingMode: "environment" },
+      {
+        fps: 12,
+        qrbox: { width: 250, height: 120 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.ITF
+        ]
+      },
+      async decodedText => {
+        const now = Date.now();
+
+        if (decodedText === lastScannedCode &&
+            now - lastScanTime < 2000) return;
+
+        lastScannedCode = decodedText;
+        lastScanTime = now;
+
+        await stopBarcodeScan();
+
+        if (scanTarget === "product") {
+          $("pBarcode").value = decodedText;
+          $("scannerMsg").textContent =
+            "Product barcode scanned: " + decodedText;
+        } else {
+          $("searchProduct").value = decodedText;
+          window.addProductToCart();
+          $("scannerMsg").textContent =
+            "Product added: " + decodedText;
+        }
+      },
+      () => {}
+    );
+
+    $("scannerMsg").textContent = "Point camera at product barcode.";
+
+  } catch (error) {
+    $("scannerMsg").textContent = "Camera Error: " + error;
+    alert("Camera Error: " + error);
+  }
+};
+
+window.stopBarcodeScan = async function() {
+  if (barcodeScanner) {
+    try {
+      if (barcodeScanner.isScanning) {
+        await barcodeScanner.stop();
+      }
+      await barcodeScanner.clear();
+    } catch (error) {
+      console.log(error);
+    }
+
+    barcodeScanner = null;
+  }
+
+  $("barcodeScannerBox").style.display = "none";
+};
+
+
+</script>
+</body>
+</html>
